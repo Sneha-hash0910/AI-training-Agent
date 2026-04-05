@@ -1,10 +1,11 @@
-from langchain_openai import ChatOpenAI
+from langchain_groq import ChatGroq
 import os
 import re
 
-# Initialize LLM
-llm = ChatOpenAI(
-    model="gpt-4o-mini",
+# ✅ Initialize Groq LLM
+llm = ChatGroq(
+    model="mixtral-8x7b-32768",
+    groq_api_key=os.getenv("GROQ_API_KEY"),
     temperature=0.7
 )
 
@@ -63,7 +64,7 @@ def run_agent(user_input):
         except:
             return "Please provide a valid calculation."
 
-    # 🎯 Weekly Planner (AI)
+    # 🎯 Weekly Planner
     elif "plan my week" in user_lower or "weekly plan" in user_lower:
         if training_sessions:
             plan_text = ""
@@ -71,21 +72,21 @@ def run_agent(user_input):
                 plan_text += f"{session['day']} at {session['time']}\n"
 
             prompt = f"""
-You are a training assistant.
+Generate a weekly training plan ONLY based on:
 
-Generate a weekly training plan ONLY based on the sessions below.
-
-Sessions:
 {plan_text}
 
 Rules:
-- Keep it short and clear
+- Keep it short
 - Only list days and time
-- Add 1 short motivational line at the end
+- Add one motivational line
 """
 
-            response = llm.invoke(prompt)
-            return response.content
+            try:
+                response = llm.invoke(prompt)
+                return response.content
+            except:
+                return "⚠️ AI is busy, please try again."
 
         else:
             return "No training sessions found. Try scheduling some first!"
@@ -100,7 +101,10 @@ Rules:
 📊 Plan → 'plan my week'
 """
 
-    # 🎯 Default AI response
+    # 🎯 Default AI
     else:
-        response = llm.invoke(user_input)
-        return response.content
+        try:
+            response = llm.invoke(user_input)
+            return response.content
+        except:
+            return "⚠️ AI is busy, please try again."
