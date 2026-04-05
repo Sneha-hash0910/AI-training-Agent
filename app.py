@@ -1,9 +1,11 @@
 import streamlit as st
 from agent import run_agent
 
-st.title("🎓 Student AI Assistant")
+st.set_page_config(page_title="AI Training Assistant", page_icon="🤖")
 
-user_input = st.text_input("Ask your question:")
+st.title("🤖 AI Training Assistant")
+
+user_input = st.text_input("Ask something:")
 
 if user_input:
     response = run_agent(user_input)
