@@ -15,8 +15,30 @@ training_sessions = []
 def run_agent(user_input):
     user_lower = user_input.lower()
 
+    # 🎯 Greeting + Introduction
+    if any(word in user_lower for word in ["hi", "hello", "hey"]):
+        return """
+Hey there! 👋
+
+I'm your AI Training Assistant 🤖
+
+I can help you with:
+📅 Scheduling training sessions  
+📋 Viewing your sessions  
+❌ Deleting sessions  
+🧮 Performing calculations  
+📊 Creating your weekly training plan  
+
+Try:
+👉 'schedule training monday 10am'  
+👉 'show sessions'  
+👉 'plan my week'  
+
+How can I help you today? 😊
+"""
+
     # 🎯 Schedule training
-    if "schedule" in user_lower:
+    elif "schedule" in user_lower:
         day_match = re.search(r"(monday|tuesday|wednesday|thursday|friday|saturday|sunday)", user_lower)
         time_match = re.search(r"\d{1,2}(am|pm)", user_lower)
 
