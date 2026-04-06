@@ -20,9 +20,10 @@ def run_agent(user_input):
         return """
 Hey there! 👋
 
-I'm your AI Training Assistant 🤖
+I'm your AI Training Assistant 🤖 (Student Helper Mode)
 
 I can help you with:
+📚 Explaining study concepts in simple terms  
 📅 Scheduling training sessions  
 📋 Viewing your sessions  
 ❌ Deleting sessions  
@@ -30,8 +31,8 @@ I can help you with:
 📊 Creating your weekly training plan  
 
 Try:
+👉 'What is machine learning?'  
 👉 'schedule training monday 10am'  
-👉 'show sessions'  
 👉 'plan my week'  
 
 How can I help you today? 😊
@@ -94,6 +95,8 @@ How can I help you today? 😊
                 plan_text += f"{session['day']} at {session['time']}\n"
 
             prompt = f"""
+You are a helpful study planner.
+
 Generate a weekly training plan ONLY based on:
 
 {plan_text}
@@ -116,6 +119,7 @@ Rules:
     # 🎯 Help
     elif "help" in user_lower:
         return """
+📚 Ask study questions → 'What is AI?'
 📅 Schedule → 'schedule training monday 10am'
 📋 Show → 'show sessions'
 ❌ Delete → 'delete 1'
@@ -123,10 +127,25 @@ Rules:
 📊 Plan → 'plan my week'
 """
 
-    # 🎯 Default AI
+    # 🎯 Default AI (STUDENT MODE)
     else:
         try:
-            response = llm.invoke(user_input)
+            prompt = f"""
+You are a friendly student assistant.
+
+Explain the answer in a simple and clear way.
+
+Rules:
+- Use easy language
+- Give short explanation
+- Use bullet points if needed
+- Add example if helpful
+
+Question:
+{user_input}
+"""
+            response = llm.invoke(prompt)
             return response.content
+
         except:
             return "⚠️ AI is busy, please try again."
