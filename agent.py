@@ -13,10 +13,10 @@ llm = ChatGroq(
 training_sessions = []
 
 def run_agent(user_input):
-    user_lower = user_input.lower()
+    user_lower = user_input.lower().strip()
 
-    # 🎯 Greeting + Introduction
-    if any(word in user_lower for word in ["hi", "hello", "hey"]):
+    # 🔥 FIX: Exact greeting match only
+    if user_lower in ["hi", "hello", "hey"]:
         return """
 Hey there! 👋
 
@@ -137,9 +137,9 @@ Explain the answer in a simple and clear way.
 
 Rules:
 - Use easy language
-- Give short explanation
+- Keep it short
 - Use bullet points if needed
-- Add example if helpful
+- Give 1 simple example
 
 Question:
 {user_input}
