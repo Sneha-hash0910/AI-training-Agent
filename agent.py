@@ -1,6 +1,7 @@
 from langchain_groq import ChatGroq
 import os
 import re
+import time
 
 # ✅ Initialize Groq LLM
 llm = ChatGroq(
@@ -9,13 +10,25 @@ llm = ChatGroq(
     temperature=0.7
 )
 
-# Store sessions
 training_sessions = []
+
+def ask_ai(prompt):
+    """Retry mechanism for Groq"""
+    try:
+        response = llm.invoke(prompt)
+        return response.content
+    except:
+        try:
+            time.sleep(2)  # wait and retry
+            response = llm.invoke(prompt)
+            return response.content
+        except:
+            return "⚠️ AI is busy right now. Please try again in a few seconds."
 
 def run_agent(user_input):
     user_lower = user_input.lower().strip()
 
-    # 🔥 FIX: Exact greeting match only
+    # 🎯 Greeting (FIXED)
     if user_lower in ["hi", "hello", "hey"]:
         return """
 Hey there! 👋
@@ -38,7 +51,7 @@ Try:
 How can I help you today? 😊
 """
 
-    # 🎯 Schedule training
+    # 🎯 Schedule
     elif "schedule" in user_lower:
         day_match = re.search(r"(monday|tuesday|wednesday|thursday|friday|saturday|sunday)", user_lower)
         time_match = re.search(r"\d{1,2}(am|pm)", user_lower)
@@ -46,75 +59,56 @@ How can I help you today? 😊
         day = day_match.group() if day_match else "unspecified day"
         time = time_match.group() if time_match else "unspecified time"
 
-        session = {
+        training_sessions.append({
             "day": day,
             "time": time,
             "details": user_input
-        }
-
-        training_sessions.append(session)
+        })
 
         return f"Training scheduled on {day} at {time} ✅"
 
-    # 🎯 Show sessions
+    # 🎯 Show
     elif "show" in user_lower or "list" in user_lower:
         if training_sessions:
-            response = "Here are your training sessions:\n\n"
-            for i, session in enumerate(training_sessions, 1):
-                response += f"{i}. {session['day'].title()} at {session['time']} → {session['details']}\n"
-            return response
-        else:
-            return "No training sessions scheduled yet."
+            return "\n".join([
+                f"{i+1}. {s['day'].title()} at {s['time']} → {s['details']}"
+                for i, s in enumerate(training_sessions)
+            ])
+        return "No training sessions scheduled yet."
 
-    # 🎯 Delete session
+    # 🎯 Delete
     elif "delete" in user_lower:
         if training_sessions:
             try:
                 index = int(re.findall(r"\d+", user_lower)[0]) - 1
                 removed = training_sessions.pop(index)
-                return f"Removed session: {removed['details']} ❌"
+                return f"Removed: {removed['details']} ❌"
             except:
-                return "Please specify a valid session number to delete."
-        else:
-            return "No sessions to delete."
+                return "Please provide valid session number."
+        return "No sessions to delete."
 
     # 🎯 Calculator
     elif "calculate" in user_lower:
         try:
             expression = user_lower.replace("calculate", "").strip()
-            result = eval(expression)
-            return f"The result is {result}"
+            return f"Result: {eval(expression)}"
         except:
-            return "Please provide a valid calculation."
+            return "Invalid calculation."
 
-    # 🎯 Weekly Planner
+    # 🎯 Weekly Plan
     elif "plan my week" in user_lower or "weekly plan" in user_lower:
         if training_sessions:
-            plan_text = ""
-            for session in training_sessions:
-                plan_text += f"{session['day']} at {session['time']}\n"
+            plan_text = "\n".join([f"{s['day']} at {s['time']}" for s in training_sessions])
 
             prompt = f"""
-You are a helpful study planner.
-
-Generate a weekly training plan ONLY based on:
+Create a simple weekly training plan based on:
 
 {plan_text}
 
-Rules:
-- Keep it short
-- Only list days and time
-- Add one motivational line
+Keep it short and add one motivational line.
 """
-
-            try:
-                response = llm.invoke(prompt)
-                return response.content
-            except:
-                return "⚠️ AI is busy, please try again."
-
-        else:
-            return "No training sessions found. Try scheduling some first!"
+            return ask_ai(prompt)
+        return "No sessions found."
 
     # 🎯 Help
     elif "help" in user_lower:
@@ -127,25 +121,19 @@ Rules:
 📊 Plan → 'plan my week'
 """
 
-    # 🎯 Default AI (STUDENT MODE)
+    # 🎯 DEFAULT (REAL AI)
     else:
-        try:
-            prompt = f"""
+        prompt = f"""
 You are a friendly student assistant.
 
-Explain the answer in a simple and clear way.
+Explain clearly and simply.
 
-Rules:
 - Use easy language
 - Keep it short
 - Use bullet points if needed
-- Give 1 simple example
+- Give 1 example
 
 Question:
 {user_input}
 """
-            response = llm.invoke(prompt)
-            return response.content
-
-        except:
-            return "⚠️ AI is busy, please try again."
+        return ask_ai(prompt)
