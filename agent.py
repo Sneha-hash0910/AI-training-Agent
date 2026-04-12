@@ -1,6 +1,8 @@
 from langchain_groq import ChatGroq
 import os
 import re
+import ast
+import operator
 
 # ✅ Initialize Groq LLM
 llm = ChatGroq(
@@ -9,12 +11,31 @@ llm = ChatGroq(
     temperature=0.7
 )
 
-training_sessions = []
-chat_history = []
+# 🔒 Safe calculator
+def safe_eval(expr):
+    allowed_ops = {
+        ast.Add: operator.add,
+        ast.Sub: operator.sub,
+        ast.Mult: operator.mul,
+        ast.Div: operator.truediv,
+        ast.Pow: operator.pow,
+    }
 
+    def eval_node(node):
+        if isinstance(node, ast.Num):
+            return node.n
+        elif isinstance(node, ast.BinOp):
+            return allowed_ops[type(node.op)](eval_node(node.left), eval_node(node.right))
+        else:
+            raise ValueError("Invalid expression")
+
+    return eval_node(ast.parse(expr, mode='eval').body)
+
+
+# 🧠 Intent detection using AI
 def detect_intent(user_input):
     prompt = f"""
-Classify the user intent strictly into ONE of these words:
+Classify the user intent into ONE word only:
 
 schedule
 show
@@ -23,7 +44,7 @@ calculate
 plan
 study
 
-Only return one word from above. No extra text.
+Only return one word.
 
 User input:
 {user_input}
@@ -31,27 +52,19 @@ User input:
     try:
         response = llm.invoke(prompt).content.lower().strip()
 
-        # 🔥 extra safety
-        if "schedule" in response:
-            return "schedule"
-        elif "show" in response:
-            return "show"
-        elif "delete" in response:
-            return "delete"
-        elif "calculate" in response:
-            return "calculate"
-        elif "plan" in response:
-            return "plan"
-        else:
-            return "study"
+        if response in ["schedule", "show", "delete", "calculate", "plan"]:
+            return response
+        return "study"
 
     except:
         return "study"
 
 
+# 🚀 MAIN AGENT
 def run_agent(user_input, training_sessions, chat_history):
     user_lower = user_input.lower().strip()
 
+    # Save user input
     chat_history.append(f"User: {user_input}")
 
     # 🎯 Greeting
@@ -63,110 +76,114 @@ I'm your AI Training Assistant 🤖
 
 I can:
 📚 Answer study questions  
-📅 Manage training schedules  
+📅 Manage schedules  
 📋 Track sessions  
 🧮 Do calculations  
-📊 Create weekly plans  
+📊 Plan your week  
 
-Just talk normally — no strict commands needed 😊
+Just talk naturally 😊
 """
         chat_history.append(f"AI: {response}")
         return response
 
-    # 🔥 AI decides intent
+    # 🔥 Detect intent
     intent = detect_intent(user_input)
 
-    # 🎯 SCHEDULE (AI-assisted)
+    # =========================
+    # 📅 SCHEDULE
+    # =========================
     if intent == "schedule":
-        try:
-            day_match = re.search(r"(monday|tuesday|wednesday|thursday|friday|saturday|sunday)", user_lower)
-            time_match = re.search(r"\d{1,2}(am|pm)", user_lower)
+        day_match = re.search(r"(monday|tuesday|wednesday|thursday|friday|saturday|sunday)", user_lower)
+        time_match = re.search(r"\d{1,2}(am|pm)", user_lower)
 
-            day = day_match.group() if day_match else "unspecified"
-            time = time_match.group() if time_match else "unspecified"
+        day = day_match.group() if day_match else "unspecified"
+        time = time_match.group() if time_match else "unspecified"
 
-            training_sessions.append({
-                "day": day,
-                "time": time,
-                "details": user_input
-            })
+        training_sessions.append({
+            "day": day,
+            "time": time,
+            "details": user_input
+        })
 
-            response = f"✅ Scheduled on {day} at {time}"
+        response = f"✅ Scheduled on {day} at {time}"
 
-        except:
-            response = "⚠️ Could not schedule properly."
-
-    # 🎯 SHOW
+    # =========================
+    # 📋 SHOW
+    # =========================
     elif intent == "show":
         if training_sessions:
             response = "📋 Your sessions:\n\n"
             for i, s in enumerate(training_sessions, 1):
-                response += f"{i}. {s['day']} at {s['time']}\n"
+                response += f"{i}. {s['day'].title()} at {s['time']}\n"
         else:
             response = "❌ No sessions yet."
 
-    # 🎯 DELETE
+    # =========================
+    # ❌ DELETE
+    # =========================
     elif intent == "delete":
         try:
             index = int(re.findall(r"\d+", user_lower)[0]) - 1
             removed = training_sessions.pop(index)
             response = f"❌ Removed: {removed['details']}"
         except:
-            response = "⚠️ Mention valid session number."
+            response = "⚠️ Please mention a valid session number (e.g., delete 1)"
 
-    # 🎯 CALCULATE
+    # =========================
+    # 🧮 CALCULATE
+    # =========================
     elif intent == "calculate":
         try:
             expression = re.sub(r"[^\d+\-*/().]", "", user_input)
-            result = eval(expression)
+            result = safe_eval(expression)
             response = f"🧮 Result: {result}"
         except:
             response = "⚠️ Invalid calculation."
 
-    # 🎯 PLAN
-    elif intent == "plan" or "plan" in user_lower:
+    # =========================
+    # 📊 PLAN
+    # =========================
+    elif intent == "plan":
         if training_sessions:
-            sessions_text = "\n".join([f"{s['day']} {s['time']}" for s in training_sessions])
+            sessions_text = "\n".join([f"{s['day']} at {s['time']}" for s in training_sessions])
 
             prompt = f"""
 Create a weekly plan based on:
 
 {sessions_text}
 
-Keep it short + add motivation.
+Rules:
+- Keep it short
+- Clear format
+- Add one motivational line
 """
 
             try:
                 response = llm.invoke(prompt).content
             except:
-                response = "⚠️ AI busy."
+                response = "⚠️ AI is busy, try again."
+
         else:
             response = "❌ No sessions to plan."
 
-    # 🎯 STUDY / DEFAULT (FULL AI)
+    # =========================
+    # 📚 STUDY MODE (REAL AI)
+    # =========================
     else:
         try:
             context = "\n".join(chat_history[-5:])
 
             prompt = f"""
-You are a intelligent, friendly and helpful student assistant.
+You are a smart, friendly student assistant.
 
-Talk like a real human, not a robot.
-
-Think before answering.
+Talk like a real human.
 
 Guidelines:
--speak naturally like a human
-- Use simple and natural language
-- Be conversational and slightly friendly and helpful
-- Adapt tone based on user question
-- If user is confused → simplify more
-- If user asks deep question → explain better
-- Avoid repeating same style every time
-- Only use bullet points if really needed
-- Add a small friendly tone (like "let’s understand this" or "here’s a simple way to think about it")
--Do not repeat same sentence style every time
--Vary explanation style
+- Keep it simple and clear
+- Be slightly conversational
+- Explain like a friend teaching
+- Use examples if helpful
+- Avoid robotic tone
 
 Conversation:
 {context}
@@ -180,7 +197,9 @@ Answer:
             response = llm.invoke(prompt).content
 
         except:
-            response = "⚠️ AI busy, try again."
+            response = "⚠️ AI is busy, try again."
 
+    # Save response
     chat_history.append(f"AI: {response}")
+
     return response
