@@ -49,7 +49,7 @@ User input:
         return "study"
 
 
-def run_agent(user_input):
+def run_agent(user_input, training_sessions, chat_history):
     user_lower = user_input.lower().strip()
 
     chat_history.append(f"User: {user_input}")
