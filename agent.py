@@ -14,22 +14,37 @@ chat_history = []
 
 def detect_intent(user_input):
     prompt = f"""
-Classify the user's intent into one of these:
-- schedule
-- show
-- delete
-- calculate
-- plan
-- study
+Classify the user intent strictly into ONE of these words:
 
-Only return one word.
+schedule
+show
+delete
+calculate
+plan
+study
+
+Only return one word from above. No extra text.
 
 User input:
 {user_input}
 """
     try:
         response = llm.invoke(prompt).content.lower().strip()
-        return response
+
+        # 🔥 extra safety
+        if "schedule" in response:
+            return "schedule"
+        elif "show" in response:
+            return "show"
+        elif "delete" in response:
+            return "delete"
+        elif "calculate" in response:
+            return "calculate"
+        elif "plan" in response:
+            return "plan"
+        else:
+            return "study"
+
     except:
         return "study"
 
@@ -109,7 +124,7 @@ Just talk normally — no strict commands needed 😊
             response = "⚠️ Invalid calculation."
 
     # 🎯 PLAN
-    elif intent == "plan":
+    elif intent == "plan" or "plan" in user_lower:
         if training_sessions:
             sessions_text = "\n".join([f"{s['day']} {s['time']}" for s in training_sessions])
 
@@ -134,25 +149,32 @@ Keep it short + add motivation.
             context = "\n".join(chat_history[-5:])
 
             prompt = f"""
-You are a friendly and helpful student assistant.
+You are a intelligent, friendly and helpful student assistant.
 
 Talk like a real human, not a robot.
 
+Think before answering.
+
 Guidelines:
+-speak naturally like a human
 - Use simple and natural language
-- Be conversational and slightly friendly
-- Avoid sounding too formal or too structured
-- Explain clearly but casually
+- Be conversational and slightly friendly and helpful
+- Adapt tone based on user question
+- If user is confused → simplify more
+- If user asks deep question → explain better
+- Avoid repeating same style every time
 - Only use bullet points if really needed
 - Add a small friendly tone (like "let’s understand this" or "here’s a simple way to think about it")
+-Do not repeat same sentence style every time
+-Vary explanation style
 
 Conversation:
 {context}
 
-Now respond to the user naturally.
-
-User question:
+User:
 {user_input}
+
+Answer:
 """
 
             response = llm.invoke(prompt).content
