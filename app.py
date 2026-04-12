@@ -2,43 +2,49 @@ import streamlit as st
 from PyPDF2 import PdfReader
 from agent import run_agent
 
-st.set_page_config(page_title="AI Training Assistant", page_icon="🤖")
-
 st.title("AI Training Assistant 🤖")
 
-# 🔥 FIX: Store sessions & memory in Streamlit
+# ✅ Session state for memory
+if "pdf_text" not in st.session_state:
+    st.session_state.pdf_text = ""
+
 if "training_sessions" not in st.session_state:
     st.session_state.training_sessions = []
 
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 
-# 📄 PDF Upload
+# 📄 Upload PDF
 uploaded_file = st.file_uploader("Upload PDF", type="pdf")
 
-pdf_text = ""
-
-if uploaded_file:
+# ✅ Extract PDF text
+if uploaded_file is not None:
     reader = PdfReader(uploaded_file)
+    pdf_text = ""
+
     for page in reader.pages:
         text = page.extract_text()
         if text:
             pdf_text += text
 
-    st.success("PDF uploaded successfully!")
+    st.session_state.pdf_text = pdf_text
+    st.success("✅ PDF uploaded successfully!")
 
-# 💬 User Input
+# ❌ Clear PDF button
+if st.button("Clear PDF"):
+    st.session_state.pdf_text = ""
+    st.success("PDF cleared!")
+
+# 💬 User input
 user_input = st.text_input("Ask something")
 
-# 🚀 Handle Input
 if user_input:
-
-    # 🔥 Pass session + memory to agent
-    if pdf_text:
+    # ✅ If PDF exists → use it
+    if st.session_state.pdf_text:
         full_input = f"""
 Answer based on this document:
 
-{pdf_text}
+{st.session_state.pdf_text[:3000]}
 
 Question:
 {user_input}
@@ -48,6 +54,8 @@ Question:
             st.session_state.training_sessions,
             st.session_state.chat_history
         )
+
+    # ✅ Normal query
     else:
         response = run_agent(
             user_input,
